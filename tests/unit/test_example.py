@@ -1,7 +1,7 @@
 ## Unit tests using unittest module ##
 
 import unittest
-from function_example import add_numbers
+from src.function_example import add_numbers
 
 class TestFunction (unittest.TestCase):
     
@@ -12,7 +12,7 @@ class TestFunction (unittest.TestCase):
 
     def test_addition_negative_numbers(self):
     # Test the addition of negative numbers
-        result = add_numbers(-2,8)
+        result = add_numbers(-2,7)
         self.assertEqual(result, 5)
 
     def test_addition_float_numbers(self):
