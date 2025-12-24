@@ -20,7 +20,11 @@ tbc
 
 ## Requirements
 
-- Python 3.8+  
+- Python 3.8+
+- Git LFS (required to access the large Image_table.csv raw dataset - over 100MB)
+```bash
+git lfs install
+```
 - Install dependencies:
 ```bash
 pip install -r requirements.txt
