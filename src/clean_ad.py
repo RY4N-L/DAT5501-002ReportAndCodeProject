@@ -1,10 +1,22 @@
 ## -- Clean the Ad_table (extra).csv -- ##
 
+# Import libraries
 import pandas as pd
 import re
 import numpy as np
 
 def clean_df():
+    '''
+    Runs functions to clean and extend datset with vehicle age and usage intensity scores.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+    
+    '''
+
     # Load csv
     df = pd.read_csv('data/raw/Ad_table (extra).csv', delimiter = ',')
 
@@ -32,14 +44,23 @@ def clean_df():
     
 
 def remove_units(df, column_name: str, unit: str):
+    '''
+    Remove a unit suffix from a DataFrame column and convert the values to float.
 
-    # Check all top speed values are measured in mph
+    :param df: Pandas DataFrame containing the column to clean.
+    :param column_name: The name of the column whose values include the unit suffix.
+    :type column_name: str
+    :param unit: The unit string to detect and remove (e.g., "mph", "mpg", "L").
+    :type unit: str
+
+    :return: The DataFrame with the specified column cleaned and converted to float.
+    
+    '''
+    # Check all top speed values are measured in unit
     bool_list = (df[column_name].astype(str).str.contains(unit))
     
     if(bool_list.all()):
         print(f"All values in {column_name} are measured in {unit}")
-
-    
     else:
         print(f"Not all values in {column_name} are measured in {unit}")
 
@@ -57,6 +78,17 @@ def remove_units(df, column_name: str, unit: str):
 
 
 def mark_flagged_rows(df, column_name: str, flag: str):
+    '''
+    Identify rows containing a given flag and mark them in a new Boolean column.
+
+    :param df: The DataFrame containing the column to inspect.
+    :param column_name: The name of the column to search for the flag.
+    :type column_name: str
+    :param flag: The substring used to identify flagged rows.
+    :type flag: str
+
+    :return: The DataFrame with a new Boolean column `is_flagged`.
+    '''
     # Create a Boolean mask for rows that are flagged
     mask = df[column_name].astype(str).str.contains(flag, regex=False)
 
@@ -70,19 +102,37 @@ def mark_flagged_rows(df, column_name: str, flag: str):
     #print(ad_unflagged_df)
     return df
 
-def calculate_vehicle_age(df, ad_column_name, man_date_column_name):
+def calculate_vehicle_age(df, ad_column_name: str, man_date_column_name: str):
     '''
-    Docstring for calculate_vehicle_age
+    Calculates vehicle age using the date advertisde and the date or registration    
     
-    :param df: Description
+    :param df: Pandas Dataframe containing the date columns.
     :param ad_column_name: Description
-    :param man_date_column_name: Description
+    :type ad_column_name: column with date vehicle advertised
+    :param man_date_column_name: column with date of vehicle registration
+    :type man_date_column_name: str
+
+    :return: The DataFrame with the added column called "Vehicle_age".
     '''
     df['Vehicle_age'] = df[ad_column_name].astype(int) - df[man_date_column_name].astype(float)
     df = remove_negatives(df, "Vehicle_age")
     return df
 
-def remove_negatives(df, column_name):
+def remove_negatives(df, column_name: str):
+    '''
+    Remove rows where the specified column contains negative values.
+    
+    :param df: The DataFrame containing vehicle age and mileage columns.
+    :param age_column: The name of the column containing vehicle age in years.
+    :type age_column: str
+    :param miles_column: The name of the column containing mileage values.
+    :type miles_column: str
+    :param new_col: Base name for the generated usage‑intensity columns.
+                    Defaults to "Usage_intensity".
+    :type new_col: str
+
+    :return: The DataFrame with negative values removed from the specified column.
+    '''
     df = df[df[column_name] >= 0]
     print("removed negatives")
     return df
