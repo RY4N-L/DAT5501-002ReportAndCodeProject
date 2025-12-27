@@ -2,25 +2,19 @@
 
 # Import libraries
 import pandas as pd
-import re
-import numpy as np
 
 def clean_df():
     '''
     Runs functions to clean and extend datset with vehicle age and usage intensity scores.
-
-    Parameters:
-    None
-
-    Returns:
-    None
     
+    param: None
+    return: None
     '''
 
     # Load csv
     df = pd.read_csv('data/raw/Ad_table (extra).csv', delimiter = ',')
 
-    # Remove rows with blank values (all columns will be needed as features)
+    # Removing rows with blank values (viable as it's a large dataset)
     df = df.dropna()
 
     # Remove units
@@ -72,12 +66,12 @@ def remove_units(df, column_name: str, unit: str):
         .str.strip()
         .astype(float))
 
-    print(f"Removed {unit} from all values in {column_name}")
+    print(f"Removed {unit} from values in {column_name}")
     
     return df
 
 
-def mark_flagged_rows(df, column_name: str, flag: str):
+def mark_flagged_rows(df, column_name: str, flag: str, new_column_name="Is_flagged"):
     '''
     Identify rows containing a given flag and mark them in a new Boolean column.
 
@@ -86,6 +80,9 @@ def mark_flagged_rows(df, column_name: str, flag: str):
     :type column_name: str
     :param flag: The substring used to identify flagged rows.
     :type flag: str
+    :param new_column_name: Base name for the generated is flagged column.
+                    Defaults to "Is_flagged".
+    :type new_column_name: str
 
     :return: The DataFrame with a new Boolean column `is_flagged`.
     '''
@@ -93,8 +90,8 @@ def mark_flagged_rows(df, column_name: str, flag: str):
     mask = df[column_name].astype(str).str.contains(flag, regex=False)
 
     # Store mask in new column
-    df["is_flagged"] = mask
-    print ("New column is_flagged created")
+    df[new_column_name] = mask
+    print (f"New column [new_column_name] created")
     
     # Remove rows which are flagged
     #flagged_df = df[~mask].rest_index(drop=True)
@@ -102,34 +99,32 @@ def mark_flagged_rows(df, column_name: str, flag: str):
     #print(ad_unflagged_df)
     return df
 
-def calculate_vehicle_age(df, ad_column_name: str, man_date_column_name: str):
+def calculate_vehicle_age(df, ad_column_name: str, man_date_column_name: str, new_column_name="Vehicle_age"):
     '''
-    Calculates vehicle age using the date advertisde and the date or registration    
+    Calculates vehicle age using the date advertised and the date of registration and removes any nregative values from errors in data
     
     :param df: Pandas Dataframe containing the date columns.
     :param ad_column_name: Description
-    :type ad_column_name: column with date vehicle advertised
+    :type ad_column_name: column with date vehicle was advertised
     :param man_date_column_name: column with date of vehicle registration
     :type man_date_column_name: str
+    :param new_column_name: Base name for the generated vehicle age column.
+                    Defaults to "Vehicle_age".
+    :type new_column_name: str
 
-    :return: The DataFrame with the added column called "Vehicle_age".
+    :return: The DataFrame with the added vehicle age column
     '''
-    df['Vehicle_age'] = df[ad_column_name].astype(int) - df[man_date_column_name].astype(float)
-    df = remove_negatives(df, "Vehicle_age")
+    df[new_column_name] = df[ad_column_name].astype(int) - df[man_date_column_name].astype(float)
+    df = remove_negatives(df, new_column_name)
     return df
 
 def remove_negatives(df, column_name: str):
     '''
     Remove rows where the specified column contains negative values.
-    
-    :param df: The DataFrame containing vehicle age and mileage columns.
-    :param age_column: The name of the column containing vehicle age in years.
-    :type age_column: str
-    :param miles_column: The name of the column containing mileage values.
-    :type miles_column: str
-    :param new_col: Base name for the generated usage‑intensity columns.
-                    Defaults to "Usage_intensity".
-    :type new_col: str
+
+    :param df: The DataFrame containing the column to filter.
+    :param column_name: The name of the column to check for negative values.
+    :type column_name: str
 
     :return: The DataFrame with negative values removed from the specified column.
     '''
@@ -138,18 +133,24 @@ def remove_negatives(df, column_name: str):
     return df
 
 
-def calculate_vehicle_usage(df, age_column:str , miles_column: str, new_col="Usage_intensity"):
+def calculate_vehicle_usage(df, age_column:str , miles_column: str, new_column_name="Usage_intensity"):
     '''
     Calculate a normalised value for vehicle usage given the years and milage
     Uasage intensity = miles/age
     Lower = better
 
-    :param df: Description
-    :param ad_date_column: Description
-    :type ad_date_column: str
-    :param miles_column: Description
+    :param df: The DataFrame containing vehicle age and mileage columns.
+    :param age_column: The name of the column containing vehicle age in years.
+    :type age_column: str
+    :param miles_column: The name of the column containing mileage values.
     :type miles_column: str
+    :param new_column_name: Base name for the generated usage-intensity columns.
+                    Defaults to "Usage_intensity".
+    :type new_column_name: str
+
+    :return: The DataFrame with added usage-intensity, normalised, and inverted columns.
     '''
+    
     print(df[df["Vehicle_age"] < 0][["Vehicle_age", "Adv_year", "Reg_year"]])
 
     age = df[age_column]
@@ -158,19 +159,19 @@ def calculate_vehicle_usage(df, age_column:str , miles_column: str, new_col="Usa
     safe_age = age.replace(0, 0.5)
 
     # raw score
-    df[new_col] = (df[miles_column] / safe_age).round(5)
+    df[new_column_name] = (df[miles_column] / safe_age).round(5)
 
     # min-max normalisation (0 = best, 1 = worst)
-    min_val = df[new_col].min()
+    min_val = df[new_column_name].min()
     print(min_val)
-    max_val = df[new_col].max()
+    max_val = df[new_column_name].max()
     
-    df[new_col + "_norm"] = ((df[new_col] - min_val) / (max_val - min_val)).round(5)
-    df[new_col + "_norm_inv"] = 1 - df[new_col + "_norm"]
+    df[new_column_name + "_norm"] = ((df[new_column_name] - min_val) / (max_val - min_val)).round(5)
+    df[new_column_name + "_norm_inv"] = 1 - df[new_column_name + "_norm"]
 
     # Check min and max is 0 and 1
-    print(df[new_col + "_norm"].max())
-    print(df[new_col + "_norm"].min())
+    print(df[new_column_name + "_norm"].max())
+    print(df[new_column_name + "_norm"].min())
     
     return df
 
