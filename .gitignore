@@ -208,7 +208,3 @@ __marimo__/
 
 
 .DS_Store
-
-pycache files already created
-src/__pycache__/function_example.cpython-313.pyc
-tests/unit/__pycache__/test_example.cpython-313-pytest-9.0.2.pyc
