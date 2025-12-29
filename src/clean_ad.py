@@ -171,7 +171,7 @@ def remove_negatives(df: pd.DataFrame, column_name: str):
 
     :return: The DataFrame with negative values removed from the specified column.
     '''
-    df = df[df[column_name] >= 0]
+    df = df[df[column_name] >= 0].copy() # use .copy() to prevent SettingWithCopyWarning as filtering creates a view
     print("removed negatives")
     
     return df
