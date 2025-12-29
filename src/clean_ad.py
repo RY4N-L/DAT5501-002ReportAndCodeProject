@@ -11,19 +11,6 @@ def preprocess_data():
     df = clean_df(df) # remove blanks and units
     df = transform_df(df) # add additional columns used for analysis
 
-    # Final tidy by formatting column names
-    rename_map = {
-        "maker": "brand",
-        "engin_size": "engine",
-        "engine_power": "power",
-        "runned_miles": "mileage",
-        "color": "colour",
-        "seat_num": "seats",
-        "door_num": "doors"
-    }
-
-    df = format_column_names(df, rename_map)
-    
     # Convert final processed df to csv
     df.to_csv("data/processed/ad.csv", index=False)
 
@@ -32,20 +19,38 @@ def preprocess_data():
 
 def clean_df(df: pd.DataFrame):
     '''
-    Runs functions to clean dataset
+    Runs functions to clean dataset and format column names
     
     :param df: Description
     :type df: pd.DataFrame
     '''
 
-    # Removing rows with blank values (viable as it's a large dataset)
+    # Remove rows with blank values (viable as it's a large dataset)
     df = df.dropna()
 
+    # Format column names
+    rename_map = {
+        "maker": "brand",
+        "engin_size": "engine",
+        "engine_power": "power",
+        "runned_miles": "mileage",
+        "color": "colour",
+        "seat_num": "seats",
+        "door_num": "doors",
+        "annual_tax": "tax",
+        "top_speed": "speed",
+        "average_mpg": "mpg",
+        "fuel_type": "fuel"
+    }
+
+    df = format_column_names(df, rename_map)
+
     # Remove units
-    df = remove_units(df, "Average_mpg", "mpg")
-    df = remove_units(df, "Top_speed", "mph")
-    df = remove_units(df, "Engin_size", "L")
-    df = remove_units(df, "Runned_Miles", "mile")
+    df = remove_units(df, "mpg", "mpg")
+    df = remove_units(df, "speed", "mph")
+    df = remove_units(df, "engine", "l")
+    df = remove_units(df, "mileage", "mile")
+    
     
     return df 
 
@@ -56,13 +61,13 @@ def transform_df(df: pd.DataFrame):
     :param df: Description
     '''
     # Mark flagged values
-    df = mark_flagged_rows(df, "Annual_Tax", "*")
+    df = mark_flagged_rows(df, "tax", "*")
 
     # Add column for vehicle age
-    df = calculate_vehicle_age(df, "Adv_year", "Reg_year")
+    df = calculate_vehicle_age(df, "adv_year", "reg_year")
 
     # Calculate usage scores
-    df = calculate_vehicle_usage(df, "age", "Runned_Miles")
+    df = calculate_vehicle_usage(df, "age", "mileage")
     
     return df
 
@@ -81,6 +86,7 @@ def remove_units(df: pd.DataFrame, column_name: str, unit: str):
     :return: The DataFrame with the specified column cleaned and converted to float.
     
     '''
+    
     # Check all top speed values are measured in unit
     bool_list = (df[column_name].astype(str).str.contains(unit))
     
@@ -90,19 +96,22 @@ def remove_units(df: pd.DataFrame, column_name: str, unit: str):
         print(f"Not all values in {column_name} are measured in {unit}")
 
     # Strip unit from column name and convert to float
-    df[column_name] = (
+    df.loc[:, column_name] = (
         df[column_name]
         .astype(str)
+        .str.lower()
         .str.replace(unit, '', regex=False)
         .str.strip()
-        .astype(float))
+        .astype(float)
+    )
+
 
     print(f"Removed {unit} from values in {column_name}")
     
     return df
 
 
-def mark_flagged_rows(df: pd.DataFrame, column_name: str, flag: str, new_column_name="Is_flagged"):
+def mark_flagged_rows(df: pd.DataFrame, column_name: str, flag: str, new_column_name="is_flagged"):
     '''
     Identify rows containing a given flag and mark them in a new Boolean column.
 
@@ -147,7 +156,7 @@ def calculate_vehicle_age(df: pd.DataFrame, ad_column_name: str, man_date_column
 
     :return: The DataFrame with the added vehicle age column
     '''
-    df[new_column_name] = df[ad_column_name].astype(int) - df[man_date_column_name].astype(float)
+    df.loc[:, new_column_name] = (df[ad_column_name].astype(float) - df[man_date_column_name].astype(float)).astype(float)
     df = remove_negatives(df, new_column_name)
     return df
 
@@ -168,7 +177,7 @@ def remove_negatives(df: pd.DataFrame, column_name: str):
     return df
 
 
-def calculate_vehicle_usage(df: pd.DataFrame, age_column:str , miles_column: str, new_column_name="Usage_intensity"):
+def calculate_vehicle_usage(df: pd.DataFrame, age_column:str , miles_column: str, new_column_name="usage_intensity"):
     '''
     Calculate a normalised value for vehicle usage given the years and milage
     Uasage intensity = miles/age
@@ -193,15 +202,15 @@ def calculate_vehicle_usage(df: pd.DataFrame, age_column:str , miles_column: str
     safe_age = age.replace(0, 0.5)
 
     # raw score
-    df[new_column_name] = (df[miles_column] / safe_age).round(5)
+    df.loc[:, new_column_name] = (df[miles_column].astype(float) / safe_age.astype(float)).round(5)
 
     # min-max normalisation (0 = best, 1 = worst)
     min_val = df[new_column_name].min()
     print(min_val)
     max_val = df[new_column_name].max()
-    
-    df[new_column_name + "_norm"] = ((df[new_column_name] - min_val) / (max_val - min_val)).round(5)
-    df[new_column_name + "_norm_inv"] = 1 - df[new_column_name + "_norm"]
+
+    df.loc[:, new_column_name + "_norm"] = ((df[new_column_name] - min_val) / (max_val - min_val)).round(5)
+    df.loc[:, new_column_name + "_norm_inv"] = 1 - df[new_column_name + "_norm"]
 
     # Check min and max is 0 and 1
     print(df[new_column_name + "_norm"].max())
