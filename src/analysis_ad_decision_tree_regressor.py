@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier, plot_tree, DecisionTreeRegressor
@@ -12,11 +13,11 @@ from sklearn.pipeline import Pipeline
 
 
 def get_safe_data():
-    # Access processed data that has not been flagged and is less than £100,000
+    # Access processed data that has not been flagged and is within the specified price
     path = "data/processed/"
     df = pd.read_csv(f"{path}ad.csv")
     print (df.columns)
-    safe_df =  df[(~df["is_flagged"]) & (df["price"])]
+    safe_df =  df[(~df["is_flagged"]) & (df["price"]<500000)]
 
         
     print(safe_df['price'].min())
@@ -68,7 +69,14 @@ def run_pipeline(preprocess: ColumnTransformer, X_train, y_train):
     model = Pipeline(steps=[
         ('preprocess', preprocess),
         #('rf', RandomForestRegressor( n_estimators=10, random_state=0, max_depth=None ))
-        ('tree', DecisionTreeRegressor(max_depth=10, random_state=10))  # or classifier
+        ('tree', DecisionTreeRegressor(
+            max_depth=20, 
+            max_features=None, 
+            min_samples_leaf=1, 
+            min_samples_split=10, 
+            random_state=10
+            )
+        )
     ])
 
     model.fit(X_train, y_train)
@@ -93,18 +101,19 @@ def plot_decision_tree(model, all_features):
     tree_model = model.named_steps['tree']
 
     # Format and plot tree
-    plt.figure(figsize=(20,10))
+    plt.figure(figsize=(10,5), dpi=600)
     plot_tree(
         tree_model, 
         feature_names = all_features,
         filled=True,
         max_depth = 3)
-    plt.tight_layout()
+
+    plt.savefig("figures/decision_tree_regressor.png", dpi=600, bbox_inches='tight')
     #plt.show()
 
-def cross_validate(model, X, y, score_type = 'neg_mean_absolute_error' ):
+def cross_validate(model, model_type:str, X, y, score_type = 'neg_mean_absolute_error' ):
     
-    tree_model = model.named_steps['tree']
+    type_model = model.named_steps[model_type]
     # Define cross-validation
     kf = KFold(n_splits=9, shuffle=True, random_state=0)
 
@@ -143,7 +152,7 @@ def plot_feature_importance(all_features:list, model):
     plt.xlabel("Importance")
     plt.title("Feature Importances (Horizontal)")
     plt.tight_layout()
-    plt.show()
+    plt.savefig("figures/feature_importance.png", dpi=300, bbox_inches='tight')
 
     print (f"Most important features:{tree_model.feature_importances_}")
 
@@ -156,7 +165,8 @@ def plot_error_graphs(errors, relative_error):
     plt.title("Absolute Error vs True Price")
 
     plt.grid(True, linestyle='--', alpha=0.5)
-    plt.show()
+    plt.savefig("figures/absolute_error.png", dpi=300, bbox_inches='tight')
+    #plt.show()
 
     plt.figure(figsize=(10, 6))
     plt.scatter(y_test, relative_error, alpha=0.4)
@@ -166,7 +176,8 @@ def plot_error_graphs(errors, relative_error):
     plt.title("Relative Error vs True Price")
 
     plt.grid(True, linestyle='--', alpha=0.5)
-    plt.show()
+    plt.savefig("figures/relative_error.png", dpi=300, bbox_inches='tight')
+    #plt.show()
 
 def plot_model_analysis(y_test, errors, relative_error):
     
@@ -191,7 +202,8 @@ def plot_model_analysis(y_test, errors, relative_error):
     plt.ylabel("Relative Error")
     plt.title("Relative Error by Price Range")
     plt.tight_layout()
-    plt.show()
+    plt.savefig("figures/relative_error_binned.png", dpi=300, bbox_inches='tight')
+    #plt.show()
 
     plt.figure(figsize=(12, 6))
     plt.bar(error_by_bin.index.astype(str), error_by_bin["error"], color="darkorange")
@@ -199,7 +211,8 @@ def plot_model_analysis(y_test, errors, relative_error):
     plt.ylabel("Absolute Error (£)")
     plt.title("Absolute Error by Price Range")
     plt.tight_layout()
-    plt.show()
+    plt.savefig("figures/absolute_error_binned.png", dpi=300, bbox_inches='tight')
+    #plt.show()
 
 
     # Brand analysis
@@ -215,15 +228,6 @@ def plot_model_analysis(y_test, errors, relative_error):
     brand_errors = df_brand.groupby("brand")["error"].mean().sort_values()
     print(brand_errors)
     
-    # --- Plot brand prediction bias --- #
-    plt.figure(figsize=(10, 14))
-    plt.barh(brand_errors.index, brand_errors.values, color="purple")
-    plt.xlabel("Average Prediction Error (£)")
-    plt.title("Brand-Level Prediction Bias (Over/Under Prediction)")
-    plt.axvline(0, color="black", linewidth=1)
-    plt.tight_layout()
-    plt.show()
-
     colors = ["red" if v < 0 else "green" for v in brand_errors.values]
 
     plt.figure(figsize=(10, 14))
@@ -232,15 +236,78 @@ def plot_model_analysis(y_test, errors, relative_error):
     plt.title("Brand-Level Prediction Bias")
     plt.axvline(0, color="black", linewidth=1)
     plt.tight_layout()
-    plt.show()
+    plt.savefig("figures/brand_level_prediction_bias.png", dpi=300, bbox_inches='tight')
+    #plt.show()
 
 
+def tune_hyperparams(model, model_type:str):
+    # Hyper parameter tuning based on model
+    
+    match(model_type):
+        case 'tree':
+            # Tune hyperparameters for decision tree regressor
+            param_grid = {
+                "tree__max_depth": [None, 5, 10, 20, 30],
+                "tree__min_samples_split": [2, 5, 10, 20],
+                "tree__min_samples_leaf": [1, 2, 4, 8],
+                "tree__max_features": ["sqrt", "log2", None] 
+            }
+        case 'rf':
+            param_grid = {
+                "rf__n_estimators": [50, 100, 200],
+                "rf__max_depth": [None, 10, 20],
+                "rf__min_samples_split": [2, 5, 10],
+                "rf__min_samples_leaf": [1, 2, 4]
+            }
 
+
+    grid = GridSearchCV(
+        model,
+        param_grid,
+        cv=5,
+        scoring="neg_mean_absolute_error",
+        n_jobs=-1
+    )
+
+    grid.fit(X_train, y_train)
+
+    print("Best params:", grid.best_params_)
+    print("Best MAE:", -grid.best_score_)
+
+
+    best_model = grid.best_estimator_
+    preds_tuned, mae_tuned, rmse_tuned, r2_tuned = test_model(best_model, X_test, y_test)
+
+    print("Tuned MAE:", mae_tuned)
+    print("Tuned RMSE:", rmse_tuned)
+    print("Tuned R²:", r2_tuned)
 
 if __name__ == "__main__":
 
     df = get_safe_data()
+    #print(df['price'].describe(percentiles=[0.5, 0.9, 0.95, 0.99, 0.999]))
 
+    # sns.boxplot(x=df['price'])
+    # plt.title("Boxplot of Car Prices") 
+    # plt.xlabel("Price (£)") 
+    # plt.show()
+
+    # fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+    # sns.boxplot(x=df['price'], ax=axes[0])
+    # axes[0].set_title("Full Price Range")
+
+    # sns.boxplot(x=df[df['price'] < 100000]['price'], ax=axes[1])
+    # axes[1].set_title("Zoomed (< £100k)")
+
+    # axes[2].set_title("Zoomed (< 40k)")
+    # sns.boxplot(x=df[df['price'] < 40000]['price'], ax=axes[2])
+
+    # plt.show()
+
+    # df = df[df['price'] < df['price'].quantile(0.99)]
+    # df['price'].describe(percentiles=[0.5, 0.9, 0.95, 0.99, 0.999])
+    # sns.boxplot(x=df['price'])
 
     # List all categorical and numeric features
     categorical_features= [
@@ -276,7 +343,7 @@ if __name__ == "__main__":
     # Train model
     model = run_pipeline(preprocess, X_train, y_train)
 
-    # Test model
+    # Test model for baseline
     preds, mae, rmse, r2 = test_model(model, X_test, y_test)
     print("Mean Absolute Error:", mae)
     print("Root Mean Squared Error:", rmse)
@@ -286,10 +353,10 @@ if __name__ == "__main__":
     #plot_feature_importance(all_features, model)
 
     # Plot tree
-    #plot_decision_tree(model, all_features)
+    plot_decision_tree(model, all_features)
 
     # Cross validate
-    #cross_validate(model, X, y)
+    #cross_validate(model, 'tree', X, y)
 
     # -- Analyse Errors -- #
     errors = np.abs(y_test - preds)
@@ -299,32 +366,5 @@ if __name__ == "__main__":
     #plot_error_graphs(errors, relative_error)
     #plot_model_analysis(y_test, errors, relative_error)
 
-    # Tune hyperparameters for decision tree regressor
-    param_grid = {
-        "tree__max_depth": [None, 5, 10, 20, 30],
-        "tree__min_samples_split": [2, 5, 10, 20],
-        "tree__min_samples_leaf": [1, 2, 4, 8],
-        "tree__max_features": ["auto", "sqrt", "log2", None]
-    }
-
-    grid = GridSearchCV(
-        model,
-        param_grid,
-        cv=5,
-        scoring="neg_mean_absolute_error",
-        n_jobs=-1
-    )
-
-    grid.fit(X_train, y_train)
-
-    print("Best params:", grid.best_params_)
-    print("Best MAE:", -grid.best_score_)
-
-
-    best_model = grid.best_estimator_
-
-    preds_tuned, mae_tuned, rmse_tuned, r2_tuned = test_model(best_model, X_test, y_test)
-
-    print("Tuned MAE:", mae_tuned)
-    print("Tuned RMSE:", rmse_tuned)
-    print("Tuned R²:", r2_tuned)
+    # Tune hyper parameters
+    #tune_hyperparams(model, 'tree')
