@@ -3,19 +3,20 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.model_selection import train_test_split, KFold, cross_val_score, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier, plot_tree, DecisionTreeRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
+
 def get_safe_data():
     # Access processed data that has not been flagged and is less than £100,000
     path = "data/processed/"
     df = pd.read_csv(f"{path}ad.csv")
     print (df.columns)
-    safe_df =  df[(~df["is_flagged"]) & (df["price"] < 50000)]
+    safe_df =  df[(~df["is_flagged"]) & (df["price"])]
 
         
     print(safe_df['price'].min())
@@ -67,7 +68,7 @@ def run_pipeline(preprocess: ColumnTransformer, X_train, y_train):
     model = Pipeline(steps=[
         ('preprocess', preprocess),
         #('rf', RandomForestRegressor( n_estimators=10, random_state=0, max_depth=None ))
-        ('tree', DecisionTreeRegressor(max_depth=10, random_state=0))  # or classifier
+        ('tree', DecisionTreeRegressor(max_depth=10, random_state=10))  # or classifier
     ])
 
     model.fit(X_train, y_train)
@@ -146,6 +147,95 @@ def plot_feature_importance(all_features:list, model):
 
     print (f"Most important features:{tree_model.feature_importances_}")
 
+def plot_error_graphs(errors, relative_error):
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, errors, alpha=0.4)
+
+    plt.xlabel("True Price (£)")
+    plt.ylabel("Absolute Error (£)")
+    plt.title("Absolute Error vs True Price")
+
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, relative_error, alpha=0.4)
+
+    plt.xlabel("True Price (£)")
+    plt.ylabel("Relative Error (fraction)")
+    plt.title("Relative Error vs True Price")
+
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.show()
+
+def plot_model_analysis(y_test, errors, relative_error):
+    
+    # Check if model performs worse on high or low priced cars
+    bins = [0, 5000, 10000, 20000, 40000, 60000, 70000, 80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000]
+    labels = [ f"{int(bins[i]/1000)}-{int(bins[i+1]/1000)}k" for i in range(len(bins)-1) ]
+
+    df_errors = pd.DataFrame({
+        "true_price": y_test,
+        "error": errors,
+        "relative_error": relative_error
+    })
+
+    df_errors["price_bin"] = pd.cut(df_errors["true_price"], bins=bins, labels=labels)
+
+    error_by_bin = df_errors.groupby("price_bin")[["error", "relative_error"]].mean()
+   
+    # --- Plot error by price bin --- #
+    plt.figure(figsize=(12, 6))
+    plt.bar(error_by_bin.index.astype(str), error_by_bin["relative_error"], color="steelblue")
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("Relative Error")
+    plt.title("Relative Error by Price Range")
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(12, 6))
+    plt.bar(error_by_bin.index.astype(str), error_by_bin["error"], color="darkorange")
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("Absolute Error (£)")
+    plt.title("Absolute Error by Price Range")
+    plt.tight_layout()
+    plt.show()
+
+
+    # Brand analysis
+    df_brand = pd.DataFrame({
+    "brand": X_test["brand"],
+    "true_price": y_test,
+    "predicted_price": preds
+    })
+
+    # Check if brands get under or over predicted
+    df_brand["error"] = df_brand["predicted_price"] - df_brand["true_price"]
+
+    brand_errors = df_brand.groupby("brand")["error"].mean().sort_values()
+    print(brand_errors)
+    
+    # --- Plot brand prediction bias --- #
+    plt.figure(figsize=(10, 14))
+    plt.barh(brand_errors.index, brand_errors.values, color="purple")
+    plt.xlabel("Average Prediction Error (£)")
+    plt.title("Brand-Level Prediction Bias (Over/Under Prediction)")
+    plt.axvline(0, color="black", linewidth=1)
+    plt.tight_layout()
+    plt.show()
+
+    colors = ["red" if v < 0 else "green" for v in brand_errors.values]
+
+    plt.figure(figsize=(10, 14))
+    plt.barh(brand_errors.index, brand_errors.values, color=colors)
+    plt.xlabel("Average Prediction Error (£)")
+    plt.title("Brand-Level Prediction Bias")
+    plt.axvline(0, color="black", linewidth=1)
+    plt.tight_layout()
+    plt.show()
+
+
+
 
 if __name__ == "__main__":
 
@@ -193,34 +283,48 @@ if __name__ == "__main__":
     print("R²:", r2)
 
     # Plot feature importance
-    plot_feature_importance(all_features, model)
+    #plot_feature_importance(all_features, model)
 
     # Plot tree
-    plot_decision_tree(model, all_features)
+    #plot_decision_tree(model, all_features)
 
     # Cross validate
-    cross_validate(model, X, y)
+    #cross_validate(model, X, y)
 
-    # # Plot error graphs
-    # errors = np.abs(y_test - preds)
-    # relative_error = errors / y_test
+    # -- Analyse Errors -- #
+    errors = np.abs(y_test - preds)
+    relative_error = errors / y_test
 
-    # plt.figure(figsize=(10, 6))
-    # plt.scatter(y_test, errors, alpha=0.4)
+    # Plot error graphs
+    #plot_error_graphs(errors, relative_error)
+    #plot_model_analysis(y_test, errors, relative_error)
 
-    # plt.xlabel("True Price (£)")
-    # plt.ylabel("Absolute Error (£)")
-    # plt.title("Absolute Error vs True Price")
+    # Tune hyperparameters for decision tree regressor
+    param_grid = {
+        "tree__max_depth": [None, 5, 10, 20, 30],
+        "tree__min_samples_split": [2, 5, 10, 20],
+        "tree__min_samples_leaf": [1, 2, 4, 8],
+        "tree__max_features": ["auto", "sqrt", "log2", None]
+    }
 
-    # plt.grid(True, linestyle='--', alpha=0.5)
-    # plt.show()
+    grid = GridSearchCV(
+        model,
+        param_grid,
+        cv=5,
+        scoring="neg_mean_absolute_error",
+        n_jobs=-1
+    )
 
-    # plt.figure(figsize=(10, 6))
-    # plt.scatter(y_test, relative_error, alpha=0.4)
+    grid.fit(X_train, y_train)
 
-    # plt.xlabel("True Price (£)")
-    # plt.ylabel("Relative Error (fraction)")
-    # plt.title("Relative Error vs True Price")
+    print("Best params:", grid.best_params_)
+    print("Best MAE:", -grid.best_score_)
 
-    # plt.grid(True, linestyle='--', alpha=0.5)
-    # plt.show()
+
+    best_model = grid.best_estimator_
+
+    preds_tuned, mae_tuned, rmse_tuned, r2_tuned = test_model(best_model, X_test, y_test)
+
+    print("Tuned MAE:", mae_tuned)
+    print("Tuned RMSE:", rmse_tuned)
+    print("Tuned R²:", r2_tuned)
