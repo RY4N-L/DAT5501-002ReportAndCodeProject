@@ -1,6 +1,6 @@
 import unittest as ut
 import pandas as pd
-from src.clean_ad import *
+from src.cleaning.clean_ad import *
 
 class TestCleanAd (ut.TestCase):
 

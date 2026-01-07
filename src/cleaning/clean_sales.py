@@ -19,6 +19,9 @@ def clean_sales(path="data/raw/Sales_table.csv"):
     df_long["year"] = df_long["year"].astype(float)
     df_long["original_sales"] = df_long["original_sales"].fillna(0).astype(int)
 
+    # Sum sales for rows with duplicate genmodel and year combinations 
+    df_long = df_long.groupby(["genmodel_id", "year"], as_index=False)["original_sales"].sum()
+
     df_long.to_csv("data/processed/sales.csv", index=False)
     return df_long
 
