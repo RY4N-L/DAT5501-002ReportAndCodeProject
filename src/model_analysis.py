@@ -12,6 +12,73 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
+
+def main():
+    df = get_safe_data()
+
+    # List all categorical and numeric features
+    categorical_features= [
+        'brand', 'genmodel', 'colour', 'bodytype', 
+        'gearbox','fuel'
+    ]
+    numeric_features = [
+        'adv_year', 'adv_month', 'reg_year', 'mileage', 
+        'engine', 'price', 'power', 'tax', 
+        'wheelbase', 'height', 'width', 'length',
+        'mpg', 'speed', 'seats', 'doors',
+        'age', 'usage_intensity_norm'
+    ]
+
+    # Define features and target for the model
+    features = [
+        'brand', 'colour', 'bodytype', 
+        'gearbox','fuel', 'adv_month', 'mileage', 
+        'mpg', 'seats', 'doors', 'power', 'engine',
+        'speed', 'age', 'usage_intensity_norm'
+    ]
+    target = 'price'
+
+    X, y = feature_selection(df, features, target)
+
+    # Encode categoricals and pass numeric through
+    categorical_features_to_train = [f for f in features if f in categorical_features]
+    numeric_features_to_train = [f for f in features if f in numeric_features]
+
+    preprocess, X_train, X_test, y_train, y_test = split_and_encode(X, y, categorical_features_to_train, numeric_features_to_train)
+    all_features = show_feature_names(preprocess, categorical_features_to_train, numeric_features_to_train, X_train) # Get feature names
+    print (all_features)
+    print (len(all_features))
+    
+    # Train model
+    # model = run_pipeline(preprocess, X_train, y_train, "tree")
+
+    # Test model for baseline
+    # preds, mae, rmse, r2 = test_model(model, X_test, y_test)
+    # print("Mean Absolute Error:", mae)
+    # print("Root Mean Squared Error:", rmse)
+    # print("R²:", r2)
+
+    # Plot feature importance
+    # plot_feature_importance(all_features, model)
+
+    # Plot tree
+    # plot_decision_tree(model, all_features)
+
+    # Cross validate
+    #cross_validate(model, 'tree', X, y)
+
+    # Tune hyper parameters
+    #tune_hyperparams(model, 'tree', X_train, y_train, X_test, y_test)
+
+    # Analyse Errors 
+    # errors = np.abs(y_test - preds)
+    # relative_error = errors / y_test
+
+    # Plot error graphs
+    #plot_error_graphs(errors, relative_error)
+    #plot_model_analysis(X_test, y_test, preds, errors, relative_error)
+
+
 def get_safe_data():
     # Access processed data that has not been flagged and is within the specified price
     path = "data/processed/"
@@ -319,67 +386,4 @@ def tune_hyperparams(model, model_type:str, X_train, y_train, X_test, y_test):
     print("Tuned R²:", r2_tuned)
 
 if __name__ == "__main__":
-
-    df = get_safe_data()
-
-    # List all categorical and numeric features
-    categorical_features= [
-        'brand', 'genmodel', 'colour', 'bodytype', 
-        'gearbox','fuel'
-    ]
-    numeric_features = [
-        'adv_year', 'adv_month', 'reg_year', 'mileage', 
-        'engine', 'price', 'power', 'tax', 
-        'wheelbase', 'height', 'width', 'length',
-        'mpg', 'speed', 'seats', 'doors',
-        'age', 'usage_intensity_norm'
-    ]
-
-    # Define features and target for the model
-    features = [
-        'brand', 'colour', 'bodytype', 
-        'gearbox','fuel', 'adv_month', 'mileage', 
-        'mpg', 'seats', 'doors', 'power', 'engine',
-        'speed', 'age', 'usage_intensity_norm'
-    ]
-    target = 'price'
-
-    X, y = feature_selection(df, features, target)
-
-    # Encode categoricals and pass numeric through
-    categorical_features_to_train = [f for f in features if f in categorical_features]
-    numeric_features_to_train = [f for f in features if f in numeric_features]
-
-    preprocess, X_train, X_test, y_train, y_test = split_and_encode(X, y, categorical_features_to_train, numeric_features_to_train)
-    all_features = show_feature_names(preprocess, categorical_features_to_train, numeric_features_to_train, X_train) # Get feature names
-    print (all_features)
-    print (len(all_features))
-    
-    # Train model
-    # model = run_pipeline(preprocess, X_train, y_train, "tree")
-
-    # Test model for baseline
-    # preds, mae, rmse, r2 = test_model(model, X_test, y_test)
-    # print("Mean Absolute Error:", mae)
-    # print("Root Mean Squared Error:", rmse)
-    # print("R²:", r2)
-
-    # Plot feature importance
-    # plot_feature_importance(all_features, model)
-
-    # Plot tree
-    # plot_decision_tree(model, all_features)
-
-    # Cross validate
-    #cross_validate(model, 'tree', X, y)
-
-    # Tune hyper parameters
-    #tune_hyperparams(model, 'tree', X_train, y_train, X_test, y_test)
-
-    # -- Analyse Errors -- #
-    # errors = np.abs(y_test - preds)
-    # relative_error = errors / y_test
-
-    # Plot error graphs
-    #plot_error_graphs(errors, relative_error)
-    #plot_model_analysis(X_test, y_test, preds, errors, relative_error)
+    main()
