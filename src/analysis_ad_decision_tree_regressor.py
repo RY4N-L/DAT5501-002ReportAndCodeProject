@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, GridSearchCV
-from sklearn.tree import DecisionTreeClassifier, plot_tree, DecisionTreeRegressor
+from sklearn.tree import plot_tree, DecisionTreeRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
 def get_safe_data():
     # Access processed data that has not been flagged and is within the specified price
@@ -64,20 +64,34 @@ def show_feature_names(preprocess: ColumnTransformer, cat_features:list, num_fea
     
     return all_features
 
-def run_pipeline(preprocess: ColumnTransformer, X_train, y_train):
+def run_pipeline(preprocess: ColumnTransformer, X_train, y_train, model_name:str):
     # Full pipeline - preprocessing + model
-    model = Pipeline(steps=[
-        ('preprocess', preprocess),
-        #('rf', RandomForestRegressor( n_estimators=10, random_state=0, max_depth=None ))
-        ('tree', DecisionTreeRegressor(
-            max_depth=20, 
-            max_features=None, 
-            min_samples_leaf=1, 
-            min_samples_split=10, 
-            random_state=10
-            )
-        )
-    ])
+
+    match model_name:
+        case "tree":
+            model = Pipeline(steps=[
+                ('preprocess', preprocess),
+                ('tree', DecisionTreeRegressor(
+                    # max_depth=20, 
+                    # max_features=None, 
+                    # min_samples_leaf=1, 
+                    # min_samples_split=10, 
+                    random_state=10
+                    )
+                )
+            ])
+        case "rf":
+            model = Pipeline(steps=[
+                ('preprocess', preprocess),
+                ('rf', RandomForestRegressor(random_state=10))
+            ])
+
+        case "gb":
+            model = Pipeline(steps=[
+                ('preprocess', preprocess),
+                ('gb', GradientBoostingRegressor(random_state=10))
+            ])
+
 
     model.fit(X_train, y_train)
 
@@ -101,13 +115,14 @@ def plot_decision_tree(model, all_features):
     tree_model = model.named_steps['tree']
 
     # Format and plot tree
-    plt.figure(figsize=(10,5), dpi=600)
+    plt.figure(figsize=(15,5), dpi=600)
     plot_tree(
         tree_model, 
         feature_names = all_features,
         filled=True,
-        max_depth = 3)
-
+        max_depth = 3,
+        fontsize=6)
+    
     plt.savefig("figures/decision_tree_regressor.png", dpi=600, bbox_inches='tight')
     #plt.show()
 
@@ -145,7 +160,7 @@ def plot_feature_importance(all_features:list, model):
     print(feat_imp)
 
     # Show feature importance graphically
-    feat_imp_nonzero = feat_imp[feat_imp["Importance"] > 0] # only include features that have some importance
+    feat_imp_nonzero = feat_imp[feat_imp["Importance"] > 0.01] # only include features that have some importance
     plt.figure(figsize=(8,5))
     plt.barh(feat_imp_nonzero["Feature"], feat_imp_nonzero["Importance"])
 
@@ -179,7 +194,7 @@ def plot_error_graphs(errors, relative_error):
     plt.savefig("figures/relative_error.png", dpi=300, bbox_inches='tight')
     #plt.show()
 
-def plot_model_analysis(y_test, errors, relative_error):
+def plot_model_analysis(X_test, y_test, preds, errors, relative_error):
     
     # Check if model performs worse on high or low priced cars
     bins = [0, 5000, 10000, 20000, 40000, 60000, 70000, 80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000]
@@ -239,8 +254,29 @@ def plot_model_analysis(y_test, errors, relative_error):
     plt.savefig("figures/brand_level_prediction_bias.png", dpi=300, bbox_inches='tight')
     #plt.show()
 
+def plot_price_box_plots(df:pd.DataFrame):
 
-def tune_hyperparams(model, model_type:str):
+    print(df['price'].describe(percentiles=[0.5, 0.9, 0.95, 0.99, 0.999]))
+
+    sns.boxplot(x=df['price'])
+    plt.title("Boxplot of Car Prices") 
+    plt.xlabel("Price (£)") 
+    plt.show()
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+    sns.boxplot(x=df['price'], ax=axes[0])
+    axes[0].set_title("Full Price Range")
+
+    sns.boxplot(x=df[df['price'] < 100000]['price'], ax=axes[1])
+    axes[1].set_title("Zoomed (< £100k)")
+
+    axes[2].set_title("Zoomed (< 40k)")
+    sns.boxplot(x=df[df['price'] < 40000]['price'], ax=axes[2])
+
+    plt.show()
+
+def tune_hyperparams(model, model_type:str, X_train, y_train, X_test, y_test):
     # Hyper parameter tuning based on model
     
     match(model_type):
@@ -285,29 +321,6 @@ def tune_hyperparams(model, model_type:str):
 if __name__ == "__main__":
 
     df = get_safe_data()
-    #print(df['price'].describe(percentiles=[0.5, 0.9, 0.95, 0.99, 0.999]))
-
-    # sns.boxplot(x=df['price'])
-    # plt.title("Boxplot of Car Prices") 
-    # plt.xlabel("Price (£)") 
-    # plt.show()
-
-    # fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-
-    # sns.boxplot(x=df['price'], ax=axes[0])
-    # axes[0].set_title("Full Price Range")
-
-    # sns.boxplot(x=df[df['price'] < 100000]['price'], ax=axes[1])
-    # axes[1].set_title("Zoomed (< £100k)")
-
-    # axes[2].set_title("Zoomed (< 40k)")
-    # sns.boxplot(x=df[df['price'] < 40000]['price'], ax=axes[2])
-
-    # plt.show()
-
-    # df = df[df['price'] < df['price'].quantile(0.99)]
-    # df['price'].describe(percentiles=[0.5, 0.9, 0.95, 0.99, 0.999])
-    # sns.boxplot(x=df['price'])
 
     # List all categorical and numeric features
     categorical_features= [
@@ -317,7 +330,7 @@ if __name__ == "__main__":
     numeric_features = [
         'adv_year', 'adv_month', 'reg_year', 'mileage', 
         'engine', 'price', 'power', 'tax', 
-        'wheelbase', 'height', 'width', 'length'
+        'wheelbase', 'height', 'width', 'length',
         'mpg', 'speed', 'seats', 'doors',
         'age', 'usage_intensity_norm'
     ]
@@ -339,32 +352,34 @@ if __name__ == "__main__":
 
     preprocess, X_train, X_test, y_train, y_test = split_and_encode(X, y, categorical_features_to_train, numeric_features_to_train)
     all_features = show_feature_names(preprocess, categorical_features_to_train, numeric_features_to_train, X_train) # Get feature names
+    print (all_features)
+    print (len(all_features))
     
     # Train model
-    model = run_pipeline(preprocess, X_train, y_train)
+    # model = run_pipeline(preprocess, X_train, y_train, "tree")
 
     # Test model for baseline
-    preds, mae, rmse, r2 = test_model(model, X_test, y_test)
-    print("Mean Absolute Error:", mae)
-    print("Root Mean Squared Error:", rmse)
-    print("R²:", r2)
+    # preds, mae, rmse, r2 = test_model(model, X_test, y_test)
+    # print("Mean Absolute Error:", mae)
+    # print("Root Mean Squared Error:", rmse)
+    # print("R²:", r2)
 
     # Plot feature importance
-    #plot_feature_importance(all_features, model)
+    # plot_feature_importance(all_features, model)
 
     # Plot tree
-    plot_decision_tree(model, all_features)
+    # plot_decision_tree(model, all_features)
 
     # Cross validate
     #cross_validate(model, 'tree', X, y)
 
+    # Tune hyper parameters
+    #tune_hyperparams(model, 'tree', X_train, y_train, X_test, y_test)
+
     # -- Analyse Errors -- #
-    errors = np.abs(y_test - preds)
-    relative_error = errors / y_test
+    # errors = np.abs(y_test - preds)
+    # relative_error = errors / y_test
 
     # Plot error graphs
     #plot_error_graphs(errors, relative_error)
-    #plot_model_analysis(y_test, errors, relative_error)
-
-    # Tune hyper parameters
-    #tune_hyperparams(model, 'tree')
+    #plot_model_analysis(X_test, y_test, preds, errors, relative_error)
