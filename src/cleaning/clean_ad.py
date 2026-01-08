@@ -8,9 +8,17 @@ def preprocess_data():
     # Load csv
     df = pd.read_csv('data/raw/Ad_table (extra).csv', delimiter = ',')
 
-    df = clean_df(df) # remove blanks and units
-    df = transform_df(df) # add additional columns used for analysis
+    print (f"initial: {df.shape}")
 
+    df = clean_df(df) # remove blanks and units and rename columns
+
+    print (f"after clean: {df.shape}")
+
+    # Mark flagged values
+    df = mark_flagged_rows(df, "tax", "*")
+    df = clean_numeric_columns(df) # convert relevant columns to numeric and remove outliers
+    df = transform_df(df) # add additional columns used for analysis
+    print (f"after transform: {df.shape}")
     # Convert final processed df to csv
     df.to_csv("data/processed/ad.csv", index=False)
 
@@ -60,8 +68,6 @@ def transform_df(df: pd.DataFrame):
     Runs functions to extend dataset with vehicle age and usage intensity scores.   
     :param df: Description
     '''
-    # Mark flagged values
-    df = mark_flagged_rows(df, "tax", "*")
 
     # Add column for vehicle age
     df = calculate_vehicle_age(df, "adv_year", "reg_year")
@@ -88,7 +94,7 @@ def remove_units(df: pd.DataFrame, column_name: str, unit: str):
     '''
     
     # Check all top speed values are measured in unit
-    bool_list = (df[column_name].astype(str).str.contains(unit))
+    bool_list = (df[column_name].astype(str).str.contains(unit, regex=False))
     
     if(bool_list.all()):
         print(f"All values in {column_name} are measured in {unit}")
@@ -133,9 +139,14 @@ def mark_flagged_rows(df: pd.DataFrame, column_name: str, flag: str, new_column_
     # Store mask in new column
     df[new_column_name] = mask
     print (f"New column {new_column_name} created")
-    
-    # Remove rows which are flagged
-    #flagged_df = df[~mask].rest_index(drop=True)
+
+    # Remove the flag from the column values
+    df[column_name] = (
+        df[column_name]
+        .astype(str)
+        .str.replace(flag, "", regex=False)
+        .str.strip()
+    )
 
     #print(ad_unflagged_df)
     return df
@@ -236,6 +247,106 @@ def format_column_names(df: pd.DataFrame, rename_map: dict):
 
     return df
 
+def clean_numeric_columns(df):
+
+    '''
+    Convert relevant columns to numeric dtype and remove implausible or extreme values based on domain-informed thresholds
+
+    :param df: The DataFrame containing raw or partially cleaned numeric fields.
+    :type df: pd.DataFrame
+
+    :return: The DataFrame with numeric columns validated, coerced, and filtered.
+    :rtype: pd.DataFrame
+    '''
+    
+    numeric_cols = [
+        'adv_year', 'adv_month', 'reg_year', 'mileage', 
+        'engine', 'price', 'power', 'tax',
+        'wheelbase', 'height', 'width', 'length',
+        'mpg', 'speed', 'seats', 'doors'
+    ]
+
+    df = enforce_numeric(df, numeric_cols)
+
+    # Check original dataset 
+    print(describe_numeric_columns(df, numeric_cols))
+    original_rows = len(df)
+    
+    # CLeaning rules
+    min_wheelbase = 500
+    min_height = 800
+    max_mileage = 500000
+    min_speed = 40
+    max_price = 500000
+
+    # Remove impossible physical measurements
+    df = df[df["wheelbase"] > min_wheelbase].copy()     # mm
+    df = df[df["height"] > min_height].copy()        # mm
+
+    # Remove unlikely mileage for age range 2000-2018
+    df = df[df["mileage"] <= max_mileage].copy()
+
+    # Remove low speeds
+    df = df[df["speed"] >= min_speed].copy()
+
+    # Remove extreme prices
+    df = df[df["price"] <= max_price]
+
+    cleaned_rows = len(df)
+    removed_rows = original_rows - cleaned_rows
+
+    print(f"Rows before cleaning: {original_rows}")
+    print(f"Rows after cleaning:  {cleaned_rows}")
+    print(f"Rows removed:         {removed_rows}")
+    print(describe_numeric_columns(df, numeric_cols))
+
+    return df
+
+def enforce_numeric(df, numeric_cols):
+    '''
+    Enforce numeric dtype for a specified list of columns, coercing invalid or
+    non-numeric entries to NaN.
+
+    :param df: The DataFrame containing the columns to convert.
+    :type df: pd.DataFrame
+    :param numeric_cols: List of column names expected to contain numeric values.
+    :type numeric_cols: list[str]
+
+    :return: The DataFrame with numeric types enforced for the specified columns.
+    :rtype: pd.DataFrame
+    '''
+
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # print(df[numeric_cols].isna().sum())
+    # print(df[df[numeric_cols].isna().any(axis=1)])
+    
+    # Count NaNs before removal
+    nan_counts = df[numeric_cols].isna().sum()
+    print("NaNs detected before removal:")
+    print(nan_counts)
+
+    # Drop rows containing NaNs in any numeric column
+    df = df.dropna(subset=numeric_cols).copy()
+
+    return df
+
+def describe_numeric_columns(df: pd.DataFrame, numeric_cols:list):
+    '''
+    Display descriptive statistics for the specified numeric columns. 
+    Used to inspect distributions before and after cleaning to verify that outliers/invalid values have been handled correctly.
+
+    :param df: The DataFrame containing numeric columns.
+    :type df: pd.DataFrame
+    :param numeric_cols: List of numeric column names to summarise.
+    :type numeric_cols: list[str]
+    
+    :return: A table containing descriptive statistics for the selected columns.
+    :rtype: pd.DataFrame
+    '''
+
+    return (df[numeric_cols].describe().T)
 
 if __name__ == "__main__":
     preprocess_data()
