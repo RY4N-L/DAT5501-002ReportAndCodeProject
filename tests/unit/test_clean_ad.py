@@ -74,8 +74,9 @@ class TestCleanAd (ut.TestCase):
         # Check column exists
         self.assertIn("is_flagged", out.columns)
 
-        # Only the row with '*' should be flagged
+        # Only the row with '*' should be flagged and the flag should be removed
         self.assertEqual(out["is_flagged"].tolist(), [False, True, False])
+        self.assertEqual(out["tax"].tolist(), ["150", "200", "300"])
 
 
     # -- Test calculate_vehicle_age() function -- #
@@ -133,6 +134,23 @@ class TestCleanAd (ut.TestCase):
 
         self.assertIn("brand", out.columns)
         self.assertIn("seats", out.columns)
+
+    # -- Test enforce_numeric() function -- #
+    def test_enforce_numeric_drops_invalid_rows(self):
+        # Should drop rows where numeric conversion fails
+        df = pd.DataFrame({
+            "mileage": ["10000", "abc", "5000"],
+            "engine": ["1.6", "?", "2.0"]
+        })
+        out = enforce_numeric(df, ["mileage", "engine"])
+        self.assertEqual(len(out), 2)
+
+    def test_preprocess_data_numeric_columns_are_numeric(self):
+        # Should ensure key numeric columns are actually numeric
+        df = preprocess_data()
+        numeric_cols = ["mileage", "engine", "price", "power", "tax"]
+        for col in numeric_cols:
+            self.assertTrue(pd.api.types.is_numeric_dtype(df[col]))
 
 
 if __name__ == '__main__':
