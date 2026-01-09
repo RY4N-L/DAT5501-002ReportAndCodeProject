@@ -1,0 +1,20 @@
+{
+    "model_type": "decision_tree_regressor",
+    "mae": 1188.7002350109374,
+    "rmse": 3160.686017300399,
+    "r2": 0.9473611208576859,
+    "hyperparameters": {
+        "ccp_alpha": 0.0,
+        "criterion": "squared_error",
+        "max_depth": null,
+        "max_features": null,
+        "max_leaf_nodes": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 1,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "random_state": 10,
+        "splitter": "best"
+    }
+}
