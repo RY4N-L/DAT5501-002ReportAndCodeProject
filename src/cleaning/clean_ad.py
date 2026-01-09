@@ -2,6 +2,8 @@
 
 # Import libraries
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 def preprocess_data():
     
@@ -271,8 +273,18 @@ def clean_numeric_columns(df):
     # Check original dataset 
     print(describe_numeric_columns(df, numeric_cols))
     original_rows = len(df)
+
+    # Visuliase price distribution 
+    plt.figure(figsize=(18, 3))
+    sns.boxplot(x=df['price'])
+    plt.title("Boxplot of Car Prices", fontsize = 16) 
+    plt.xlabel("Price (£)", fontsize = 14) 
+    plt.xticks(fontsize=12)
+    plt.savefig("figures/raw_price_box_plot.png", dpi=300, bbox_inches='tight')
+    plt.show()
     
-    # CLeaning rules
+
+    # Set cleaning rules
     min_wheelbase = 500
     min_height = 800
     max_mileage = 500000
