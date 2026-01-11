@@ -1,3 +1,4 @@
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/RY4N-L/DAT5501-002ReportAndCodeProject/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/RY4N-L/DAT5501-002ReportAndCodeProject/tree/main)
 # DAT5501 002 Report and Code Project
 (Used‑Car Price Analysis & Machine Learning Pipeline)
 
