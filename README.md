@@ -76,11 +76,20 @@ All raw data in ```data/raw``` is sourced from the DVM-CAR Dataset (https://figs
 ## Requirements
 
 - Python 3.10+  
-- Install dependencies:
+- Libraries:
+  - `numpy`
+  - `pandas`
+  - `matplotlib`
+  - `seaborn`
+  - `scikit-learn`
+  - `scipy` (for `scipy.stats.randint`)
+  - `joblib`
 
-```bash
-pip install -r requirements.txt
-```
+ Install Libraries:
+  ```bash
+  pip install numpy pandas matplotlib seaborn scikit-learn scipy joblib
+  ```
+
 
 ## How to Run
 
