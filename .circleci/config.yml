@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   unit-tests:
     docker:
-      - image: python:3.8
+      - image: python:3.13.7
     steps:
       - checkout
       - run:
