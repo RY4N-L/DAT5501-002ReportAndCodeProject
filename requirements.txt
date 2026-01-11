@@ -1,4 +1,3 @@
 pytest
 pandas
 matplotlib
-matplotlib.pyplot
