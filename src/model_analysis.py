@@ -21,14 +21,7 @@ from sklearn.utils.validation import check_is_fitted
 
 def main():
     df = get_safe_data()
-
-    # Check for proxy leakage
-    #plot_correlation_heatmap(df, numeric_features)
     
-    # Check price distributions
-    #plot_price_box_plots(df)
-
-    # -- Select features and split dataset -- #
     # List all categorical and numeric features
     categorical_features= [
         'brand', 'genmodel', 'colour', 'bodytype', 
@@ -42,12 +35,15 @@ def main():
         'age', 'usage_intensity_norm', 'original_sales', 'entry_price'
     ]
 
+    # Check for proxy leakage
+    plot_correlation_heatmap(df, numeric_features)
+
     # Define features and target for the model
     features = [
         'brand', 'colour', 'bodytype', 
         'gearbox','fuel', 'adv_month', 'mileage', 
         'mpg', 'seats', 'doors', 'power', 'engine',
-        'speed', 'age', 'usage_intensity_norm', 'original_sales', 'entry_price'
+        'speed', 'age', 'usage_intensity_norm', 'original_sales'
     ]
 
     target = 'price'
@@ -65,17 +61,34 @@ def main():
     all_features = show_feature_names(preprocess, categorical_features_to_train, numeric_features_to_train, X_train) # Get feature names
     print (f"Number of ohe catagoric features + numeric features: {len(all_features)}")
     
-    # # -- Train models -- #
-    #dtr_model = find_or_train_model("final_decision_tree.pkl", "decision_tree_regressor", preprocess, X_train, y_train, X_test, y_test)
-    rf_model = find_or_train_model("random_forest.pkl", "random_forest", preprocess, X_train, y_train, X_test, y_test)
-    #gb_model = find_or_train_model("gradient_boosting.pkl", "gradient_boosting", preprocess, X_train, y_train, X_test, y_test)
-    
+    # Train models
+    dtr_model = find_or_train_model("final_decision_tree.pkl", "decision_tree_regressor", preprocess, X_train, y_train, X_test, y_test)
+    gb_model = find_or_train_model("final_gradient_boosting.pkl", "gradient_boosting", preprocess, X_train, y_train, X_test, y_test)
+    rf_model = find_or_train_model("final_random_forest.pkl", "random_forest", preprocess, X_train, y_train, X_test, y_test)
+    rf_tuned_model = find_or_train_model("final_random_forest_tuned.pkl", "random_forest_tuned", preprocess, X_train, y_train, X_test, y_test)
 
-    # #Tune hyperparameters (tuned once then commented out)
+    # Plot feature importance
+    plot_feature_importance(all_features, dtr_model, "decision_tree_regressor", "final_dtr_feature_importance.png")
+    plot_feature_importance(all_features, gb_model, "gradient_boosting", "final_gb_feature_importance.png")
+    plot_feature_importance(all_features, rf_model, "random_forest", "final_rf_feature_importance.png")
+    plot_feature_importance(all_features, rf_tuned_model, "random_forest_tuned", "final_rf_tuned_feature_importance.png")
+
+    # Analyse Errors 
+    a_preds, a_mae, a_rmse, a_r2 = test_model(rf_tuned_model, X_test, y_test)
+    a_errors = np.abs(y_test - a_preds)
+    a_relative_error = a_errors / y_test
+
+    # Plot error graphs
+    plot_model_analysis(X_test, y_test, a_preds, a_errors, a_relative_error, "brand_level_bias.png", a_mae)
+
+    # Plot tree
+    #plot_decision_tree(dtr_model, "decision_tree_regressor", all_features, "final_decision_tree_plot.png")
+
+    #Tune hyperparameters (tuned once then commented out)
     # values, rf_tuned, params_tuned, mae_tuned, rmse_tuned, r2_tuned = tune_hyperparams(rf_model, "random_forest", X_train, y_train, X_test, y_test)
-    # save_model(rf_tuned, "rf_tuned3.pkl")
+    # save_model(rf_tuned, "final_random_forest_tuned.pkl")
     
-    # # Save tuned metrics
+    # # Save tuned metrics (uncomment when tuning model)
     # results = {
     #     "model_type": "random_forest_tuned",
     #     "mae": mae_tuned,
@@ -83,33 +96,9 @@ def main():
     #     "r2": r2_tuned,
     #     "hyperparameters": params_tuned,
     # }
+    # save_metrics(results, "final_rf_tuned.json")
 
-    # save_metrics(results, "rf_tuned3.json")
-
-    # Plot feature importance
-    #plot_feature_importance(all_features, dtr_model, "decision_tree_regressor", "final_dtr_feature_importance.png")
-    # plot_feature_importance(all_features, rf_model, "random_forest", "rf_feature_importance.png")
-    # plot_feature_importance(all_features, gb_model, "gradient_boosting", "gb_feature_importance.png")
-
-    # Plot tree
-    #plot_decision_tree(dtr_model, "decision_tree_regressor", all_features, "decision_tree_plot.png")
-
-    # Cross validate
-    #cross_validate(model, 'tree', X, y)
-
-    # Analyse Errors 
-
-    # a_preds, a_mae, a_rmse, a_r2 = test_model(rf_model, X_test, y_test)
-
-    # a_errors = np.abs(y_test - a_preds)
-    # a_relative_error = a_errors / y_test
-
-    # # # Plot error graphs
-    # # plot_error_graphs(errors, relative_error, y_test)
-    # plot_model_analysis(X_test, y_test, a_preds, a_errors, a_relative_error, "brand_level_entry_price.png")
-
-
-def plot_correlation_heatmap(df, numeric_features, figsize=(14, 10)):
+def plot_correlation_heatmap(df, numeric_features, figsize=(15, 8), fig_name = "correlation_heatmap.png"):
     """
     Plots a correlation heatmap for the numeric features in the dataset
     and prints the full correlation matrix.
@@ -128,15 +117,21 @@ def plot_correlation_heatmap(df, numeric_features, figsize=(14, 10)):
     plt.figure(figsize=figsize)
     sns.heatmap(
         corr_matrix,
+        annot_kws={"size": 12},
         annot=True,          # show values inside the heatmap
         fmt=".2f",           # format numbers
         cmap="coolwarm",
         center=0,
         linewidths=0.5
     )
+
+    plt.xticks(fontsize=15)
+    plt.yticks(fontsize=15)
+
     plt.title("Correlation Heatmap of Numeric Features")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"figures/{fig_name}", dpi=600, bbox_inches='tight')
+    #plt.show()
 
     return corr_matrix
 
@@ -145,7 +140,7 @@ def find_or_train_model(model_file: str, model_name: str, preprocess, X_train, y
     # Check if model has already been trained, if not train the relevant model 
     
     model_path = os.path.join(f"models/{model_file}")
-    metrics_path = f"models/{model_name}_metrics.json"
+    metrics_path = f"models/final_{model_name}_metrics.json"
     if os.path.exists(model_path) and os.path.exists(metrics_path):
         model = load_model(model_file)
         print(f"Loaded existing baseline {model_name} model.")
@@ -208,8 +203,7 @@ def get_safe_data(path = "data/processed/final_dataset.csv"):
 
     safe_df =  df[(~df["is_flagged"]) & price_filter]
 
-    #5print(safe_df.max())
-        
+    #print(safe_df.max())
 
     return safe_df
 
@@ -255,7 +249,7 @@ def show_feature_names(preprocess: ColumnTransformer, cat_features:list, num_fea
     return all_features
 
 def run_pipeline(preprocess: ColumnTransformer, X_train, y_train, model_name:str):
-    # runs full pipeline based on the model selected - preprocessing + model
+    # Runs full pipeline based on the model selected - preprocessing + model
     start = time.time()
 
     match model_name:
@@ -269,6 +263,18 @@ def run_pipeline(preprocess: ColumnTransformer, X_train, y_train, model_name:str
             model = Pipeline(steps=[
                 ('preprocess', preprocess),
                 ('random_forest', RandomForestRegressor(n_jobs=-1, random_state=10))
+            ])
+        case "random_forest_tuned":
+            model = Pipeline(steps=[
+                ('preprocess', preprocess),
+                ('random_forest_tuned', RandomForestRegressor(
+                    n_jobs=-1, 
+                    max_depth = 29,
+                    max_features = None,
+                    min_samples_leaf = 2,
+                    min_samples_split = 6,
+                    n_estimators = 47,
+                    random_state = 10))
             ])
 
         case "gradient_boosting":
@@ -296,7 +302,7 @@ def test_model(model, X_test, y_test):
     return preds, mae, rmse, r2
 
 def plot_decision_tree(model, model_name, all_features, fig_name:str):
-    # -- Plot tree graphically -- #
+    # Plot tree graphically
 
     # Extract tree to plot graphically
     model_step = model.named_steps[model_name]
@@ -330,7 +336,8 @@ def cross_validate(model, model_type:str, X, y, score_type = 'neg_mean_absolute_
     print("Worst MAE:", np.max(cv_mae)) # highest error
 
 def plot_feature_importance(all_features:list, model, model_name:str, fig_name:str):
-    
+    # Plot feature importance horizontal bar chart
+
     model_step = model.named_steps[model_name]
 
     # Find feature importances
@@ -351,8 +358,9 @@ def plot_feature_importance(all_features:list, model, model_name:str, fig_name:s
     plt.figure(figsize=(8,5))
     plt.barh(feat_imp_nonzero["Feature"], feat_imp_nonzero["Importance"])
 
-    plt.xlabel("Importance")
-    plt.title("Feature Importances (Horizontal)")
+    plt.xlabel("Importance", fontweight="bold")
+    plt.ylabel("Feature", fontweight="bold")
+    plt.title("Feature Importances (Random Forest Tuned)", fontweight="bold")
     plt.tight_layout()
     plt.savefig(f"figures/{fig_name}", dpi=300, bbox_inches='tight')
 
@@ -381,11 +389,11 @@ def plot_error_graphs(errors, relative_error, y_test):
     plt.savefig("figures/relative_error.png", dpi=300, bbox_inches='tight')
     #plt.show()
 
-def plot_model_analysis(X_test, y_test, preds, errors, relative_error, file_name:str):
+def plot_model_analysis(X_test, y_test, preds, errors, relative_error, file_name:str, mae ):
     
     # Check if model performs worse on high or low priced cars
     bins = [0, 5000, 10000, 20000, 40000, 60000, 70000, 80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000]
-    labels = [ f"{int(bins[i]/1000)}-{int(bins[i+1]/1000)}k" for i in range(len(bins)-1) ]
+    labels = [ f"{int(bins[i]/1000)}-{int(bins[i+1]/1000)}" for i in range(len(bins)-1) ]
 
     df_errors = pd.DataFrame({
         "true_price": y_test,
@@ -395,14 +403,15 @@ def plot_model_analysis(X_test, y_test, preds, errors, relative_error, file_name
 
     df_errors["price_bin"] = pd.cut(df_errors["true_price"], bins=bins, labels=labels)
 
-    error_by_bin = df_errors.groupby("price_bin")[["error", "relative_error"]].mean()
+    error_by_bin = df_errors.groupby("price_bin")[["error", "relative_error"]].mean()*100
    
     # --- Plot error by price bin --- #
     plt.figure(figsize=(12, 6))
     plt.bar(error_by_bin.index.astype(str), error_by_bin["relative_error"], color="steelblue")
     plt.xticks(rotation=45, ha="right")
-    plt.ylabel("Relative Error")
-    plt.title("Relative Error by Price Range")
+    plt.ylabel("Relative Error (%)", fontweight="bold", fontsize = 15)
+    plt.xlabel("Price Range (thousand, £)", fontweight="bold", fontsize = 15)
+    plt.title("Relative Error by Price Range", fontweight="bold", fontsize = 15)
     plt.tight_layout()
     plt.savefig("figures/relative_error_binned.png", dpi=300, bbox_inches='tight')
     #plt.show()
@@ -410,8 +419,8 @@ def plot_model_analysis(X_test, y_test, preds, errors, relative_error, file_name
     plt.figure(figsize=(12, 6))
     plt.bar(error_by_bin.index.astype(str), error_by_bin["error"], color="darkorange")
     plt.xticks(rotation=45, ha="right")
-    plt.ylabel("Absolute Error (£)")
-    plt.title("Absolute Error by Price Range")
+    plt.ylabel("Absolute Error (£)", fontweight="bold")
+    plt.title("Absolute Error by Price Range", fontweight="bold")
     plt.tight_layout()
     plt.savefig("figures/absolute_error_binned.png", dpi=300, bbox_inches='tight')
     #plt.show()
@@ -431,20 +440,30 @@ def plot_model_analysis(X_test, y_test, preds, errors, relative_error, file_name
 
     brand_errors = df_brand.groupby("brand")["error"].mean().sort_values()
     # Filter significant over/under predictions 
-    threshold = 800 # or mae 
-    significant = brand_errors[brand_errors.abs() > threshold]
+    threshold = mae 
+    significant = brand_errors[(brand_errors.abs() > threshold) & (brand_errors.abs() < 50000 )] # Filter for errors larger than the MAE and remove outliers (extreme errors)
 
     print(significant)
     
-    colors = ["red" if v < 0 else "green" for v in brand_errors.values]
+    colors = ["red" if v < 0 else "green" for v in significant.values]
 
-    plt.figure(figsize=(10, 14))
-    plt.barh(brand_errors.index, brand_errors.values, color=colors)
-    plt.xlabel("Average Prediction Error (£)")
-    plt.title("Brand-Level Prediction Bias")
+
+    # Format Graph
+    plt.figure(figsize=(15, 6))
+    plt.barh(significant.index, significant.values, color=colors)
+    plt.xlabel("Average Prediction Error (MAE, £)", fontsize =18, fontweight="bold")
+    #plt.ylabel("Brand", fontsize =15, fontweight="bold")
+    plt.yticks(fontsize=16)
+    plt.xticks(fontsize=16)
+    plt.title("Brand-Level Prediction Bias", fontsize = 18, fontweight="bold")
     plt.axvline(0, color="black", linewidth=1)
+
+    # Add value labels
+    for i, v in enumerate(significant.values):
+        plt.text(v,i,f"{v:.0f}",va='center',ha='left' if v >= 0 else 'right', fontsize = 12)
+
     plt.tight_layout()
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.savefig(f"figures/{file_name}", dpi=300, bbox_inches='tight')
     #plt.show()
 
 def plot_price_box_plots(df:pd.DataFrame):
@@ -502,8 +521,8 @@ def tune_hyperparams(model, model_type:str, X_train, y_train, X_test, y_test):
         case 'random_forest':
             param_dist = {
                 "random_forest__n_estimators": randint(20, 150),
-                "random_forest__max_depth": [None] + list(range(5, 51)),
-                "random_forest__min_samples_split": randint(2, 20),
+                "random_forest__max_depth": [None] + list(range(5, 31)),
+                "random_forest__min_samples_split": randint(2, 11),
                 "random_forest__min_samples_leaf": randint(1, 5),
                 "random_forest__max_features": [None, "sqrt", "log2"]
             }
@@ -518,8 +537,6 @@ def tune_hyperparams(model, model_type:str, X_train, y_train, X_test, y_test):
         n_jobs=-1,
         random_state=10
     )
-
-
 
     # grid = GridSearchCV(
     #     model,

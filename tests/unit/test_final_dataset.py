@@ -1,6 +1,6 @@
 import unittest as ut
 import pandas as pd
-from src.merge_ad_sales_price import merge_ad_sales_price
+from src.cleaning.merge_ad_sales_price import merge_ad_sales_price
 
 class TestMergeAdSalesPrice(ut.TestCase):
     def test_no_duplicate_rows_after_merge(self):

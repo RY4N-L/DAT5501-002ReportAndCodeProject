@@ -1,8 +1,8 @@
 {
     "model_type": "decision_tree_regressor",
-    "mae": 1188.7002350109374,
-    "rmse": 3160.686017300399,
-    "r2": 0.9473611208576859,
+    "mae": 1187.4337578167567,
+    "rmse": 2850.066224798537,
+    "r2": 0.9571990088844171,
     "hyperparameters": {
         "ccp_alpha": 0.0,
         "criterion": "squared_error",

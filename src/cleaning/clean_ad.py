@@ -281,7 +281,7 @@ def clean_numeric_columns(df):
     plt.xlabel("Price (£)", fontsize = 14) 
     plt.xticks(fontsize=12)
     plt.savefig("figures/raw_price_box_plot.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    #plt.show()
     
 
     # Set cleaning rules

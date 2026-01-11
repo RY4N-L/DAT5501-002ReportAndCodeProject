@@ -1,0 +1,13 @@
+{
+    "model_type": "random_forest_tuned",
+    "mae": 902.4462186060875,
+    "rmse": 2373.628685209723,
+    "r2": 0.970312783041544,
+    "hyperparameters": {
+        "random_forest__max_depth": 29,
+        "random_forest__max_features": null,
+        "random_forest__min_samples_leaf": 2,
+        "random_forest__min_samples_split": 6,
+        "random_forest__n_estimators": 47
+    }
+}
