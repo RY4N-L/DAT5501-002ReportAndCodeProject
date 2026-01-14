@@ -30,12 +30,11 @@ All raw data in ```data/raw``` is sourced from the DVM-CAR Dataset (https://figs
 - **data/**  
   - **raw/**  
     - `Ad_table (extra).csv` – main dataset of UK used‑car advertisements.  
-    - `Ad_table.csv`, `Basic_table.csv`, `Image_table.csv`, `Price_table.csv`, `Sales_table.csv`, `Trim_table.csv` – additional raw data sources.  
+    - `Price_table.csv`, `Sales_table.csv` – additional raw data sources.  
   - **processed/**  
     - `ad.csv` – cleaned advertisement dataset.  
     - `price.csv` – cleaned price dataset.  
     - `sales.csv` – cleaned sales dataset.  
-    - `trim.csv` – cleaned trim dataset.  
     - `final_dataset.csv` – fully merged and validated modelling dataset.
 
 - **figures/**  
@@ -57,7 +56,6 @@ All raw data in ```data/raw``` is sourced from the DVM-CAR Dataset (https://figs
     - `clean_ad.py` – cleans advertisement dataset (units, types, outliers, derived features).  
     - `clean_price.py` – cleans price dataset.  
     - `clean_sales.py` – cleans sales dataset.  
-    - `clean_trim.py` – cleans trim dataset.  
     - `merge_ad_sales_price.py` – merges cleaned datasets into a unified modelling table.  
   - `model_analysis.py` – full modelling pipeline (train/test split, encoding, model training, tuning, evaluation, saving metrics, figures and models).
 
